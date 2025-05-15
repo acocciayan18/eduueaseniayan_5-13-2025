@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.text.InputType;
@@ -28,7 +29,7 @@ import com.google.firebase.FirebaseOptions;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CreateLocalBonusFlash extends AppCompatActivity {
+public class CreateLocalBonusFlash extends BaseActivity {
 
     private EditText bonusQuizTitle, bonusQuizDescription;
     private LinearLayout bonusQaContainer;
@@ -87,109 +88,112 @@ public class CreateLocalBonusFlash extends AppCompatActivity {
             return;
         }
 
+       showLoading();
+
         Map<String, Object> quizData = new HashMap<>();
         quizData.put("title", title);
         quizData.put("description", desc);
         quizData.put("creatorId", user.getUid());
         quizData.put("flash", true);
-        quizData.put("type", "local"); // <- added type=local field
+        quizData.put("type", "local");
+
+        int validQACount = 0;
 
         for (int i = 0; i < bonusQaContainer.getChildCount(); i++) {
             View qaView = bonusQaContainer.getChildAt(i);
-            EditText questionField = qaView.findViewWithTag("bonus_question_field");
-            EditText answerField = qaView.findViewWithTag("bonus_answer_field");
-            EditText bonusField = qaView.findViewWithTag("bonus_points_field");
+            EditText questionField = qaView.findViewById(R.id.bonus_question_field);
+            EditText answerField = qaView.findViewById(R.id.bonus_answer_field);
+            EditText bonusField = qaView.findViewById(R.id.bonus_points_field);
 
             String question = questionField.getText().toString().trim();
             String answer = answerField.getText().toString().trim();
             String pointsStr = bonusField.getText().toString().trim();
-            int points = pointsStr.isEmpty() ? 0 : Integer.parseInt(pointsStr);
 
-            if (!question.isEmpty() && !answer.isEmpty()) {
-                Map<String, Object> qa = new HashMap<>();
-                qa.put("question", question);
-                qa.put("answer", answer);
-                qa.put("bonusPoints", points);
-                quizData.put("BonusQA" + (i + 1), qa);
+            if (question.isEmpty() || answer.isEmpty() || pointsStr.isEmpty()) {
+                hideLoading();
+                Toast.makeText(this, "All questions must have question, answer, and bonus points", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            int points;
+            try {
+                points = Integer.parseInt(pointsStr);
+                if (points < 0 || points > 99) {
+                   hideLoading();
+                    Toast.makeText(this, "Bonus points must be between 0 and 99", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+               hideLoading();
+                Toast.makeText(this, "Invalid bonus points input", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Map<String, Object> qa = new HashMap<>();
+            qa.put("question", question);
+            qa.put("answer", answer);
+            qa.put("bonusPoints", points);
+            quizData.put("BonusQA" + (validQACount + 1), qa);
+            validQACount++;
         }
 
-        Log.d("CreateLocalBonusFlash", "Saving quiz to secondary DB");
+        if (validQACount < 3) {
+          hideLoading();
+            Toast.makeText(this, "At least 3 complete question-answer-bonus sets are required", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         secondaryDb.push().setValue(quizData)
                 .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Local Bonus Flash quiz saved!", Toast.LENGTH_SHORT).show();
-                    Log.d("CreateLocalBonusFlash", "Quiz saved successfully");
-                    startActivity(new Intent(this, Home.class));
-                    finish();
+                   hideLoading();
+                    Toast.makeText(this, "Bonus quiz saved to secondary DB!", Toast.LENGTH_SHORT).show();
+                    new Handler().postDelayed(() -> {
+                        startActivity(new Intent(this, Home.class));
+                        finish();
+                    }, 800); // Small delay so toast is visible
                 })
                 .addOnFailureListener(e -> {
+                    hideLoading();
                     Toast.makeText(this, "Error saving quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e("CreateLocalBonusFlash", "Error saving quiz: " + e.getMessage());
                 });
     }
 
+
     private void addBonusQABlock() {
-        LinearLayout qaBlock = new LinearLayout(this);
-        qaBlock.setOrientation(LinearLayout.VERTICAL);
-        qaBlock.setPadding(16, 16, 16, 16);
+        View qaBlock = getLayoutInflater().inflate(R.layout.bonus_qa_block, bonusQaContainer, false);
 
-        EditText questionField = new EditText(this);
-        questionField.setHint("Enter Question");
-        questionField.setId(View.generateViewId());
-        questionField.setTag("bonus_question_field");
 
-        EditText answerField = new EditText(this);
-        answerField.setHint("Enter Answer");
-        answerField.setId(View.generateViewId());
-        answerField.setTag("bonus_answer_field");
+        ImageButton addBtn = qaBlock.findViewById(R.id.add_button);
+        ImageButton deleteBtn = qaBlock.findViewById(R.id.delete_button);
 
-        EditText bonusPointsField = new EditText(this);
-        bonusPointsField.setHint("Bonus Points");
-        bonusPointsField.setInputType(InputType.TYPE_CLASS_NUMBER);
-        bonusPointsField.setId(View.generateViewId());
-        bonusPointsField.setTag("bonus_points_field");
 
-        LinearLayout buttonLayout = new LinearLayout(this);
-        buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
-
-        ImageButton addBtn = new ImageButton(this);
-        addBtn.setImageResource(R.drawable.ic_add);
-        addBtn.setBackgroundColor(Color.TRANSPARENT);
         addBtn.setOnClickListener(v -> {
             vibrate();
             addBonusQABlock();
         });
 
-        ImageButton deleteBtn = new ImageButton(this);
-        deleteBtn.setImageResource(R.drawable.ic_delete);
-        deleteBtn.setBackgroundColor(Color.TRANSPARENT);
         deleteBtn.setOnClickListener(v -> {
             vibrate();
             bonusQaContainer.removeView(qaBlock);
             updateDeleteButtons();
         });
 
-        buttonLayout.addView(addBtn);
-        buttonLayout.addView(deleteBtn);
-
-        qaBlock.addView(questionField);
-        qaBlock.addView(answerField);
-        qaBlock.addView(bonusPointsField);
-        qaBlock.addView(buttonLayout);
-
         bonusQaContainer.addView(qaBlock);
         updateDeleteButtons();
     }
+
 
     @SuppressLint("NotifyDataSetChanged")
     private void updateDeleteButtons() {
         int count = bonusQaContainer.getChildCount();
         for (int i = 0; i < count; i++) {
             View qaView = bonusQaContainer.getChildAt(i);
-            LinearLayout buttonLayout = (LinearLayout) ((LinearLayout) qaView).getChildAt(3);
-            ImageButton deleteBtn = (ImageButton) buttonLayout.getChildAt(1);
-            deleteBtn.setEnabled(count > 1);
+            ImageButton deleteBtn = qaView.findViewById(R.id.delete_button);
+            if (deleteBtn != null) {
+                deleteBtn.setEnabled(count > 3);
+            }
+
+            deleteBtn.setEnabled(count > 3); // Prevent deleting if only 3 remain
         }
     }
 

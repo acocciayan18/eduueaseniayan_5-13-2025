@@ -86,7 +86,7 @@
         android:text="Local Quizzes"
         android:textColor="@color/white"
         android:textSize="20sp"
-        android:fontFamily="@font/poppinsblack"
+        android:fontFamily="@font/poppinsbold"
         android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/search_quiz"
         app:layout_constraintStart_toStartOf="parent"

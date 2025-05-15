@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class RandomQuizTrueOrFalse extends AppCompatActivity {
+public class RandomQuizTrueOrFalse extends BaseActivity {
 
     private TextView questionText;
     private RadioGroup choicesGroup;
@@ -53,16 +53,25 @@ public class RandomQuizTrueOrFalse extends AppCompatActivity {
 
 
         submitButton.setOnClickListener(v -> {
+            // Disable button to prevent multiple clicks
+            submitButton.setEnabled(false);
+
             int selectedId = choicesGroup.getCheckedRadioButtonId();
             if (selectedId == -1) {
                 Toast.makeText(this, "Please select an answer", Toast.LENGTH_SHORT).show();
+                submitButton.setEnabled(true); // Re-enable on early return
+                return;
+            }
+
+            if (currentQuestionIndex >= questionList.size()) {
+                // Safety check: all questions answered
+                showResult();
                 return;
             }
 
             RadioButton selectedRadio = findViewById(selectedId);
-            String selectedAnswer = selectedRadio.getText().toString().toLowerCase(); // true or false
+            String selectedAnswer = selectedRadio.getText().toString().toLowerCase();
 
-            // Check answer
             if (selectedAnswer.equalsIgnoreCase(correctAnswer)) {
                 Toast.makeText(this, "Correct!", Toast.LENGTH_SHORT).show();
                 score++;
@@ -70,17 +79,20 @@ public class RandomQuizTrueOrFalse extends AppCompatActivity {
                 Toast.makeText(this, "Incorrect. Correct answer: " + correctAnswer, Toast.LENGTH_LONG).show();
             }
 
-            // Move to the next question
             currentQuestionIndex++;
             if (currentQuestionIndex < questionList.size()) {
                 displayQuestion(questionList.get(currentQuestionIndex));
+                submitButton.setEnabled(true); // Re-enable for next question
             } else {
-                showResult(); // If no more questions, show result
+                showResult(); // Quiz finished
             }
         });
+
     }
 
     private void loadQuestionsFromFirebase() {
+
+        showLoading();
         FirebaseApp secondaryApp;
         try {
             secondaryApp = FirebaseApp.getInstance("Secondary");
@@ -109,6 +121,8 @@ public class RandomQuizTrueOrFalse extends AppCompatActivity {
                     TrueOrFalseQuestion q = snap.getValue(TrueOrFalseQuestion.class);
                     questionList.add(q);
                 }
+
+                hideLoading();
 
                 if (!questionList.isEmpty()) {
                     // Shuffle the question list to get random questions

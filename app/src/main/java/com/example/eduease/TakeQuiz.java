@@ -1,7 +1,7 @@
 package com.example.eduease;
 
 import android.annotation.SuppressLint;
-import android.media.MediaPlayer;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,19 +18,25 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class TakeQuiz extends AppCompatActivity {
+public class TakeQuiz extends BaseActivity {
 
     private LinearLayout qaContainer;
-    private FirebaseFirestore db;
     private List<Map<String, String>> questionsList;
     private String quizId;
+    private DatabaseReference localQuizzesRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,70 +51,97 @@ public class TakeQuiz extends AppCompatActivity {
         });
 
         qaContainer = findViewById(R.id.qa_container);
-        db = FirebaseFirestore.getInstance();
 
-        // Get the quiz ID from the intent
+        showLoading();
+
+        // Initialize secondary Firebase app
+        FirebaseApp secondaryApp;
+        try {
+            secondaryApp = FirebaseApp.getInstance("Secondary");
+        } catch (IllegalStateException e) {
+            FirebaseOptions options = new FirebaseOptions.Builder()
+                    .setApplicationId("1:882141634417:android:ac69b51d83d01def3460d0")
+                    .setApiKey("AIzaSyBlECTZf28SbEc4xHsz7JnH99YtTw6T58I")
+                    .setProjectId("edu-ease-ni-ayan")
+                    .setDatabaseUrl("https://edu-ease-ni-ayan-default-rtdb.firebaseio.com/")
+                    .build();
+            secondaryApp = FirebaseApp.initializeApp(getApplicationContext(), options, "Secondary");
+        }
+
+        FirebaseDatabase secondaryDatabase = FirebaseDatabase.getInstance(secondaryApp);
+        localQuizzesRef = secondaryDatabase.getReference("local_quizzes");
+
+        // Get quiz ID
         quizId = getIntent().getStringExtra("QUIZ_ID");
         if (quizId != null) {
-            loadQuizData(quizId);
+            loadQuizDataFromRealtimeDB(quizId);
         } else {
             Toast.makeText(this, "Quiz ID not provided.", Toast.LENGTH_SHORT).show();
             finish();
         }
 
-        // Set up the submit button
+        // Submit button
         Button submitButton = findViewById(R.id.submit_btn);
         submitButton.setOnClickListener(v -> handleSubmit());
     }
 
     @SuppressLint("SetTextI18n")
-    private void loadQuizData(String quizId) {
-        db.collection("quizzes").document(quizId).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        // Display the quiz title
-                        String title = documentSnapshot.getString("title");
-                        if (title != null) {
-                            TextView quizTitle = findViewById(R.id.quiz_title);
-                            quizTitle.setText(title);
-                        }
+    private void loadQuizDataFromRealtimeDB(String quizId) {
+        localQuizzesRef.child(quizId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                if (!snapshot.exists()) {
+                    Toast.makeText(TakeQuiz.this, "Quiz not found.", Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
 
-                        // Clear the container
-                        qaContainer.removeAllViews();
+                // Title
+                String title = snapshot.child("title").getValue(String.class);
+                if (title != null) {
+                    TextView quizTitle = findViewById(R.id.quiz_title);
+                    quizTitle.setText(title);
+                }
 
-                        // Collect all questions into a list
-                        questionsList = new ArrayList<>();
-                        for (int i = 1; ; i++) {
-                            Map<String, String> qa = (Map<String, String>) documentSnapshot.get("Question " + i);
-                            if (qa == null) break;
-                            questionsList.add(qa);
-                        }
+                qaContainer.removeAllViews();
+                questionsList = new ArrayList<>();
 
-                        // Shuffle the questions
-                        Collections.shuffle(questionsList);
-
-                        // Add shuffled questions to the UI
-                        int questionNumber = 1;
-                        for (Map<String, String> qa : questionsList) {
-                            addQuestionBlock(questionNumber++, qa.get("question"));
-                        }
-                    } else {
-                        Toast.makeText(this, "Quiz not found.", Toast.LENGTH_SHORT).show();
-                        finish();
+                int i = 1;
+                while (snapshot.hasChild("Question " + i)) {
+                    DataSnapshot questionSnap = snapshot.child("Question " + i);
+                    Map<String, String> qa = (Map<String, String>) questionSnap.getValue();
+                    if (qa != null) {
+                        questionsList.add(qa);
                     }
-                })
-                .addOnFailureListener(e -> Toast.makeText(this, "Error loading quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    i++;
+                }
+
+                Collections.shuffle(questionsList);
+
+                int questionNumber = 1;
+                for (Map<String, String> qa : questionsList) {
+                    addQuestionBlock(questionNumber++, qa.get("question"));
+                }
+
+                hideLoading();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                hideLoading();
+                Toast.makeText(TakeQuiz.this, "Error loading quiz: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void addQuestionBlock(int questionNumber, String question) {
         LayoutInflater inflater = LayoutInflater.from(this);
-        View qaBlock = inflater.inflate(R.layout.question_and_answer, qaContainer, false);
+        View qaBlock = inflater.inflate(R.layout.ayan_take_quiz_edittext, qaContainer, false);
 
         TextView questionNumberView = qaBlock.findViewById(R.id.question_number);
         EditText questionField = qaBlock.findViewById(R.id.question_field);
         EditText answerField = qaBlock.findViewById(R.id.answer_field);
 
-        // Set the question text and make it read-only
         questionNumberView.setText("#" + questionNumber + " Question:");
         questionField.setText(question);
         questionField.setFocusable(false);
@@ -118,29 +151,9 @@ public class TakeQuiz extends AppCompatActivity {
         questionField.setTextIsSelectable(false);
 
         answerField.setHint("Enter your answer here");
-
-        // Tag the block with the question's index
-        qaBlock.setTag(questionNumber - 1); // Zero-based index matching questionsList
-
-        // Listen for text changes in the answer field
-        answerField.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus && !answerField.getText().toString().trim().isEmpty()) {
-                moveBlockToBottom(qaBlock);
-            }
-        });
+        qaBlock.setTag(questionNumber - 1);
 
         qaContainer.addView(qaBlock);
-    }
-
-    /**
-     * Moves the given question block to the bottom of the container.
-     */
-    private void moveBlockToBottom(View qaBlock) {
-        qaContainer.removeView(qaBlock);
-        qaContainer.addView(qaBlock);
-
-        // Smoothly scroll to the first unanswered question
-        qaContainer.post(() -> qaContainer.getChildAt(0).requestFocus());
     }
 
     private void handleSubmit() {
@@ -156,7 +169,6 @@ public class TakeQuiz extends AppCompatActivity {
         }
 
         if (!allAnswered) {
-            // Show confirmation dialog
             new AlertDialog.Builder(this)
                     .setTitle("Unanswered Questions")
                     .setMessage("You have unanswered questions. Are you sure you want to submit?")
@@ -168,56 +180,21 @@ public class TakeQuiz extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("SetTextI18n")
     private void calculateScore() {
-        int score = 0;
-        StringBuilder resultBuilder = new StringBuilder();
+        ArrayList<String> userAnswers = new ArrayList<>();
 
         for (int i = 0; i < qaContainer.getChildCount(); i++) {
             View child = qaContainer.getChildAt(i);
-            TextView questionField = child.findViewById(R.id.question_field);
             EditText answerField = child.findViewById(R.id.answer_field);
-
-            // Get the question index from the tag
-            int questionIndex = (int) child.getTag();
-
-            String userAnswer = answerField.getText().toString().trim(); // Trim user input
-            Map<String, String> questionData = questionsList.get(questionIndex); // Use the index to fetch the correct question
-            String correctAnswer = questionData.get("answer").trim(); // Trim correct answer
-
-            // Case-insensitive comparison
-            if (userAnswer.equalsIgnoreCase(correctAnswer)) {
-                score++;
-            }
-
-            // Append question, correct answer, and user's answer to results
-            resultBuilder.append("Q: ").append(questionField.getText().toString()).append("\n");
-            resultBuilder.append("Your Answer: ").append(userAnswer.isEmpty() ? "No Answer" : userAnswer).append("\n");
-            resultBuilder.append("Correct Answer: ").append(correctAnswer).append("\n\n");
+            String userAnswer = answerField.getText().toString().trim();
+            userAnswers.add(userAnswer);
         }
 
-        // Calculate the percentage score
-        int totalQuestions = questionsList.size();
-        float rawPercentage = (score / (float) totalQuestions) * 100;
+        QuizDataHolder.setQuestionsList(questionsList);
+        QuizDataHolder.setUserAnswers(userAnswers);
 
-        // Apply the rounding logic
-        float roundedPercentage = rawPercentage >= 75
-                ? (float) Math.floor(rawPercentage)
-                : (float) Math.ceil(rawPercentage);
-
-        // Select the sound to play
-        int soundResId = roundedPercentage >= 75 ? R.raw.pass : R.raw.fail;
-
-        // Play the sound
-        MediaPlayer mediaPlayer = MediaPlayer.create(this, soundResId);
-        mediaPlayer.start();
-        mediaPlayer.setOnCompletionListener(mp -> mp.release()); // Release resources after playback
-
-        // Show the results
-        new AlertDialog.Builder(this)
-                .setTitle("Quiz Results")
-                .setMessage("Your Score: " + score + "/" + totalQuestions + "\nPercentage: " + roundedPercentage + "%\n\n" + resultBuilder.toString())
-                .setPositiveButton("OK", (dialog, which) -> finish())
-                .show();
+        Intent intent = new Intent(TakeQuiz.this, QuizResult.class);
+        startActivity(intent);
+        finish();
     }
 }

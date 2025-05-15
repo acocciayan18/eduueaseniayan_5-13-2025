@@ -26,7 +26,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.FirebaseOptions;
 
-public class TakeBonusFlash extends AppCompatActivity {
+public class TakeBonusFlash extends BaseActivity {
 
     private TextView quizTitleTextView;
     private TextView quizDescriptionTextView;
@@ -79,6 +79,8 @@ public class TakeBonusFlash extends AppCompatActivity {
     }
 
     private void loadQuizDetails(String quizId) {
+
+
         try {
             FirebaseDatabase bonusDb = FirebaseDatabase.getInstance(FirebaseApp.getInstance("bonusFlashApp"));
             DatabaseReference quizRef = bonusDb.getReference("bonus_quizzes").child(quizId);
@@ -116,14 +118,23 @@ public class TakeBonusFlash extends AppCompatActivity {
 
                 if (bonusPoints != null && question != null && answer != null) {
                     totalQuestions++;
-                    View cardView = getLayoutInflater().inflate(R.layout.item_bonus_question, bonusPointsContainer, false);
+                    View cardView = getLayoutInflater().inflate(R.layout.item_random_question_box, bonusPointsContainer, false);
 
                     GridLayout.LayoutParams params = new GridLayout.LayoutParams();
                     params.width = 0;
                     params.height = GridLayout.LayoutParams.WRAP_CONTENT;
                     params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+                    params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);  // ensure square ratio
                     params.setMargins(8, 8, 8, 8);
                     cardView.setLayoutParams(params);
+
+// Force square dimension
+                    cardView.post(() -> {
+                        int width = cardView.getWidth();
+                        cardView.getLayoutParams().height = width;
+                        cardView.requestLayout();
+                    });
+
 
                     TextView bonusPointsTextView = cardView.findViewById(R.id.bonus_points);
                     bonusPointsTextView.setText("" + bonusPoints);
@@ -142,6 +153,10 @@ public class TakeBonusFlash extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+
+
+
+
     }
 
 

@@ -26,6 +26,17 @@ public class Quiz {
     // Default constructor (required for Firestore)
     public Quiz() {}
 
+    private String typeQuiz;
+
+    public String getTypeQuiz() {
+        return typeQuiz;
+    }
+
+    public void setTypeQuiz(String typeQuiz) {
+        this.typeQuiz = typeQuiz;
+    }
+
+
     // Constructor with parameters
     public Quiz(String id, String creatorId, Timestamp timestamp, String title, String description, List<Question> questions, boolean isFlash) {
         this.id = id;

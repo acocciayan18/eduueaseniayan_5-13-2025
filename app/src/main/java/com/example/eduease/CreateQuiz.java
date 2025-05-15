@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.LayoutInflater;
@@ -20,20 +21,22 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CreateQuiz extends AppCompatActivity {
+public class CreateQuiz extends BaseActivity {
 
     private LinearLayout qaContainer;
     private Vibrator vibrator;
-    private FirebaseFirestore db;
     private EditText quizTitle;
     private EditText quizDescription;
     private String quizId;
@@ -44,7 +47,6 @@ public class CreateQuiz extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_create_quiz);
 
-        db = FirebaseFirestore.getInstance();
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -58,11 +60,11 @@ public class CreateQuiz extends AppCompatActivity {
         qaContainer = findViewById(R.id.qa_container);
 
         MaterialButton saveButton = findViewById(R.id.save_btn);
-        saveButton.setOnClickListener(v -> saveToFirestore());
+        saveButton.setOnClickListener(v -> saveToRealtimeDB());
 
         quizId = getIntent().getStringExtra("QUIZ_ID");
         if (quizId != null) {
-            loadQuizData(quizId);
+            // You can implement load from RealtimeDB if needed
         } else {
             for (int i = 0; i < 3; i++) {
                 addQuestionAnswerBlock();
@@ -118,7 +120,8 @@ public class CreateQuiz extends AppCompatActivity {
             EditText questionInput = block.findViewById(R.id.question_field);
             EditText answerInput = block.findViewById(R.id.answer_field);
 
-            if (questionInput.getText().toString().trim().isEmpty() || answerInput.getText().toString().trim().isEmpty()) {
+            if (questionInput.getText().toString().trim().isEmpty() ||
+                    answerInput.getText().toString().trim().isEmpty()) {
                 emptyBlocks.add(block);
             } else {
                 filledBlocks.add(block);
@@ -143,60 +146,55 @@ public class CreateQuiz extends AppCompatActivity {
         int childCount = qaContainer.getChildCount();
         for (int i = 0; i < childCount; i++) {
             View qaBlock = qaContainer.getChildAt(i);
-
             ImageButton deleteButton = qaBlock.findViewById(R.id.delete_qa);
             deleteButton.setEnabled(childCount > 1);
         }
     }
 
-    private void loadQuizData(String quizId) {
-        db.collection("quizzes").document(quizId).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        quizTitle.setText(documentSnapshot.getString("title"));
-                        quizDescription.setText(documentSnapshot.getString("description"));
+    private void saveToRealtimeDB() {
+        showLoading();
 
-                        qaContainer.removeAllViews();
-
-                        for (int i = 1; ; i++) {
-                            Map<String, String> qa = (Map<String, String>) documentSnapshot.get("Question " + i);
-                            if (qa == null) break;
-
-                            View qaBlock = addQuestionAnswerBlock();
-                            EditText questionInput = qaBlock.findViewById(R.id.question_field);
-                            EditText answerInput = qaBlock.findViewById(R.id.answer_field);
-
-                            questionInput.setText(qa.get("question"));
-                            answerInput.setText(qa.get("answer"));
-                        }
-                    } else {
-                        Toast.makeText(this, "Quiz not found.", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(e -> Toast.makeText(this, "Error loading quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
-
-    private void saveToFirestore() {
         String title = quizTitle.getText().toString().trim();
         String description = quizDescription.getText().toString().trim();
 
         if (title.isEmpty() || description.isEmpty()) {
+            hideLoading();
             Toast.makeText(this, "Title and Description cannot be empty", Toast.LENGTH_SHORT).show();
             return;
         }
 
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
+            hideLoading();
             Toast.makeText(this, "User not logged in.", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        FirebaseApp secondaryApp;
+        try {
+            secondaryApp = FirebaseApp.getInstance("Secondary");
+        } catch (IllegalStateException e) {
+            FirebaseOptions options = new FirebaseOptions.Builder()
+                    .setApplicationId("1:882141634417:android:ac69b51d83d01def3460d0")
+                    .setApiKey("AIzaSyBlECTZf28SbEc4xHsz7JnH99YtTw6T58I")
+                    .setProjectId("edu-ease-ni-ayan")
+                    .setDatabaseUrl("https://edu-ease-ni-ayan-default-rtdb.firebaseio.com/")
+                    .build();
+            secondaryApp = FirebaseApp.initializeApp(getApplicationContext(), options, "Secondary");
+        }
+
+        FirebaseDatabase secondaryDatabase = FirebaseDatabase.getInstance(secondaryApp);
+        DatabaseReference quizzesRef = secondaryDatabase.getReference("local_quizzes");
 
         Map<String, Object> quizData = new HashMap<>();
         quizData.put("creatorId", currentUser.getUid());
         quizData.put("title", title);
         quizData.put("description", description);
-        quizData.put("timestamp", com.google.firebase.Timestamp.now());
+        quizData.put("timestamp", System.currentTimeMillis());
+        quizData.put("type", "local");
 
+
+        int validQACount = 0;
         for (int i = 0; i < qaContainer.getChildCount(); i++) {
             View qaBlock = qaContainer.getChildAt(i);
             EditText questionInput = qaBlock.findViewById(R.id.question_field);
@@ -206,33 +204,50 @@ public class CreateQuiz extends AppCompatActivity {
             String answer = answerInput.getText().toString().trim();
 
             if (!question.isEmpty() && !answer.isEmpty()) {
-                quizData.put("Question " + (i + 1), new HashMap<String, String>() {{
-                    put("question", question);
-                    put("answer", answer);
-                }});
+                Map<String, String> qa = new HashMap<>();
+                qa.put("question", question);
+                qa.put("answer", answer);
+                quizData.put("Question " + (validQACount + 1), qa);
+                validQACount++;
             }
         }
 
+        if (validQACount < 1) {
+            hideLoading();
+            Toast.makeText(this, "Please add at least one complete question and answer.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (quizId != null) {
-            // Update existing quiz
-            db.collection("quizzes").document(quizId)
-                    .update(quizData)
+            quizzesRef.child(quizId)
+                    .setValue(quizData)
                     .addOnSuccessListener(aVoid -> {
-                        Toast.makeText(CreateQuiz.this, "Quiz updated successfully!", Toast.LENGTH_SHORT).show();
-                        startActivity(new Intent(CreateQuiz.this, Home.class));
-                        finish();
+                        hideLoading();
+                        Toast.makeText(this, "Quiz updated successfully!", Toast.LENGTH_SHORT).show();
+                        new Handler().postDelayed(() -> {
+                            startActivity(new Intent(this, Home.class));
+                            finish();
+                        }, 800);
                     })
-                    .addOnFailureListener(e -> Toast.makeText(CreateQuiz.this, "Failed to update quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    .addOnFailureListener(e -> {
+                        hideLoading();
+                        Toast.makeText(this, "Failed to update quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
         } else {
-            // Add new quiz
-            db.collection("quizzes")
-                    .add(quizData)
-                    .addOnSuccessListener(documentReference -> {
-                        Toast.makeText(CreateQuiz.this, "Quiz saved successfully!", Toast.LENGTH_SHORT).show();
-                        startActivity(new Intent(CreateQuiz.this, Home.class));
-                        finish();
+            quizzesRef.push()
+                    .setValue(quizData)
+                    .addOnSuccessListener(aVoid -> {
+                        hideLoading();
+                        Toast.makeText(this, "Quiz saved successfully!", Toast.LENGTH_SHORT).show();
+                        new Handler().postDelayed(() -> {
+                            startActivity(new Intent(this, Home.class));
+                            finish();
+                        }, 800);
                     })
-                    .addOnFailureListener(e -> Toast.makeText(CreateQuiz.this, "Failed to save quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    .addOnFailureListener(e -> {
+                        hideLoading();
+                        Toast.makeText(this, "Failed to save quiz: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
         }
     }
 

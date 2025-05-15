@@ -55,7 +55,6 @@ public class QuizAdapter extends RecyclerView.Adapter<QuizAdapter.QuizViewHolder
                 v.getContext().startActivity(intent);
             } else if ("randomquiz".equals(currentQuiz.getType())) {
 
-                // Fetch prompt from Firebase using quiz ID
                 FirebaseApp secondaryApp = FirebaseApp.getInstance("Secondary");
                 FirebaseDatabase secondaryDatabase = FirebaseDatabase.getInstance(secondaryApp);
                 DatabaseReference quizRef = secondaryDatabase
@@ -94,12 +93,19 @@ public class QuizAdapter extends RecyclerView.Adapter<QuizAdapter.QuizViewHolder
                     }
                 });
 
+            } else if ("public".equals(currentQuiz.getTypeQuiz())) {
+                Intent intent = new Intent(v.getContext(), TakePublicQuiz.class);
+                intent.putExtra("quizId", currentQuiz.getId());
+                intent.putExtra("typeQuiz", "public");
+                v.getContext().startActivity(intent);
+
             } else {
                 if (listener != null) {
                     listener.onQuizClick(currentQuiz);
                 }
             }
         });
+
 
     }
 

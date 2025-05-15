@@ -36,7 +36,7 @@ import com.google.firebase.auth.GoogleAuthProvider;
 
 import java.util.Objects;
 
-public class CreateAccount extends AppCompatActivity {
+public class CreateAccount extends BaseActivity {
 
     private static final String TAG = "CreateAccountActivity";
     private static final int RC_SIGN_IN = 100;
@@ -151,15 +151,20 @@ public class CreateAccount extends AppCompatActivity {
 
         if (!validateInputs(email, password, retypePassword)) return;
 
+        showLoading();
+
         firebaseAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
                         FirebaseUser user = firebaseAuth.getCurrentUser();
                         if (user != null) {
+
+                            hideLoading();
                             Toast.makeText(this, "Account created successfully! Welcome, " + user.getEmail(), Toast.LENGTH_SHORT).show();
                             navigateToHome(user);
                         }
                     } else {
+                        hideLoading();
                         Log.w(TAG, "handleSignUp: Failure", task.getException());
                         Toast.makeText(this, "Account creation failed: " + Objects.requireNonNull(task.getException()).getMessage(), Toast.LENGTH_SHORT).show();
                     }
@@ -261,6 +266,8 @@ public class CreateAccount extends AppCompatActivity {
             return;
         }
 
+        showLoading();
+
         AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
         firebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
@@ -271,7 +278,7 @@ public class CreateAccount extends AppCompatActivity {
                             if (account.getPhotoUrl() != null) {
                                 profileImageUrl = account.getPhotoUrl().toString();
                             }
-
+                            hideLoading();
                             Toast.makeText(this, "Sign in successful! Welcome, " + user.getDisplayName() + "!", Toast.LENGTH_LONG).show();
 
                             Intent homeIntent = new Intent(this, Home.class);
@@ -282,6 +289,7 @@ public class CreateAccount extends AppCompatActivity {
                             finish();
                         }
                     } else {
+                        hideLoading();
                         Log.w(TAG, "firebaseAuthWithGoogle: signInWithCredential failed", task.getException());
                         Toast.makeText(this, "Authentication failed. Please try again.", Toast.LENGTH_SHORT).show();
                     }

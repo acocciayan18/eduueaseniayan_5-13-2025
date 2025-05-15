@@ -15,7 +15,7 @@ import com.google.firebase.database.*;
 
 import java.util.*;
 
-public class RandomQuizIdentification extends AppCompatActivity {
+public class RandomQuizIdentification extends BaseActivity {
 
     private TextView questionText;
     private EditText answerInput;
@@ -42,9 +42,17 @@ public class RandomQuizIdentification extends AppCompatActivity {
 
 
         submitButton.setOnClickListener(v -> {
+            submitButton.setEnabled(false); // Disable to prevent multiple clicks
+
+            if (currentQuestionIndex >= questionList.size()) {
+                showResult();
+                return;
+            }
+
             String userAnswer = answerInput.getText().toString().trim();
             if (userAnswer.isEmpty()) {
                 Toast.makeText(this, "Please enter your answer", Toast.LENGTH_SHORT).show();
+                submitButton.setEnabled(true); // Re-enable on invalid input
                 return;
             }
 
@@ -62,13 +70,16 @@ public class RandomQuizIdentification extends AppCompatActivity {
 
             if (currentQuestionIndex < questionList.size()) {
                 displayQuestion(questionList.get(currentQuestionIndex));
+                submitButton.setEnabled(true); // Re-enable for next question
             } else {
-                showResult();
+                showResult(); // Quiz finished
             }
         });
+
     }
 
     private void loadIdentificationQuestions() {
+        showLoading();
         FirebaseApp secondaryApp;
         try {
             secondaryApp = FirebaseApp.getInstance("Secondary");
@@ -98,6 +109,8 @@ public class RandomQuizIdentification extends AppCompatActivity {
                     IdentificationQuestion q = snap.getValue(IdentificationQuestion.class);
                     allQuestions.add(q);
                 }
+
+                hideLoading();
 
                 if (!allQuestions.isEmpty()) {
                     Collections.shuffle(allQuestions); // Shuffle for randomness

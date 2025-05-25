@@ -158,10 +158,19 @@ public class CreateAccount extends BaseActivity {
                     if (task.isSuccessful()) {
                         FirebaseUser user = firebaseAuth.getCurrentUser();
                         if (user != null) {
-
-                            hideLoading();
-                            Toast.makeText(this, "Account created successfully! Welcome, " + user.getEmail(), Toast.LENGTH_SHORT).show();
-                            navigateToHome(user);
+                            user.sendEmailVerification()
+                                    .addOnCompleteListener(verifyTask -> {
+                                        hideLoading();
+                                        if (verifyTask.isSuccessful()) {
+                                            Toast.makeText(this, "Verification email sent to " + user.getEmail(), Toast.LENGTH_LONG).show();
+                                            firebaseAuth.signOut(); // Force logout until verification is done
+                                            Intent intent = new Intent(this, Login.class);
+                                            startActivity(intent);
+                                            finish();
+                                        } else {
+                                            Toast.makeText(this, "Failed to send verification email.", Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
                         }
                     } else {
                         hideLoading();
@@ -170,6 +179,7 @@ public class CreateAccount extends BaseActivity {
                     }
                 });
     }
+
 
     private boolean validateInputs(String email, String password, String retypePassword) {
         EditText emailInput = findViewById(R.id.email_input);
@@ -272,21 +282,29 @@ public class CreateAccount extends BaseActivity {
         firebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
+                        boolean isNewUser = task.getResult().getAdditionalUserInfo().isNewUser();
                         FirebaseUser user = firebaseAuth.getCurrentUser();
-                        if (user != null) {
-                            String profileImageUrl = null;
-                            if (account.getPhotoUrl() != null) {
-                                profileImageUrl = account.getPhotoUrl().toString();
-                            }
-                            hideLoading();
-                            Toast.makeText(this, "Sign in successful! Welcome, " + user.getDisplayName() + "!", Toast.LENGTH_LONG).show();
 
-                            Intent homeIntent = new Intent(this, Home.class);
-                            homeIntent.putExtra("PROFILE_IMAGE_URL", profileImageUrl);
-                            homeIntent.putExtra("user_email", user.getEmail());
-                            homeIntent.putExtra("user_name", user.getDisplayName());
-                            startActivity(homeIntent);
-                            finish();
+                        if (user != null) {
+                            hideLoading();
+                            String profileImageUrl = account.getPhotoUrl() != null
+                                    ? account.getPhotoUrl().toString()
+                                    : "@drawable/person";
+
+                            if (isNewUser) {
+                                // Redirect to SetPasswordActivity for new users
+                                Intent intent = new Intent(this, GooglePasswordSetup.class);
+                                intent.putExtra("user_email", user.getEmail());
+                                intent.putExtra("user_name", user.getDisplayName());
+                                intent.putExtra("PROFILE_IMAGE_URL", profileImageUrl);
+                                intent.putExtra("from", "signup"); // Optional flag
+                                startActivity(intent);
+                                finish();
+                            } else {
+                                // Go to Home for existing users
+                                Toast.makeText(this, "Welcome back, " + user.getDisplayName() + "!", Toast.LENGTH_SHORT).show();
+                                navigateToHome(user);
+                            }
                         }
                     } else {
                         hideLoading();
@@ -295,4 +313,5 @@ public class CreateAccount extends BaseActivity {
                     }
                 });
     }
+
 }

@@ -29,19 +29,29 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
 
         // Check if a user is logged in
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null) {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null) {
             // User is logged in, navigate to Home
             Intent homeIntent = new Intent(this, Home.class);
+            homeIntent.putExtra("user_email", user.getEmail());
+            homeIntent.putExtra("user_name", user.getDisplayName());
+
+            // You can pass profile image if you store it somewhere
+            String profileImageUrl = (user.getPhotoUrl() != null) ? user.getPhotoUrl().toString() : "";
+            homeIntent.putExtra("PROFILE_IMAGE_URL", profileImageUrl);
+
+            // Clear back stack so back button won't return to login/signup
+            homeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(homeIntent);
+
+            // Finish this activity so it doesn't show behind Home
             finish();
             return;
         }
 
-        // Check if coming from Settings
+        // User is not logged in, continue showing this screen
         boolean fromSettings = getIntent().getBooleanExtra("from_settings", false);
         if (isFreshLaunch && !fromSettings) {
-            // Play the opening sound only if it's a fresh launch and not from Settings
             playOpeningSound();
         }
 
@@ -54,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        isFreshLaunch = false; // It's not a fresh launch when navigating back
+        isFreshLaunch = false;
     }
 
     @Override

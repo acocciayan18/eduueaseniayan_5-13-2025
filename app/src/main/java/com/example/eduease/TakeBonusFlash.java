@@ -80,6 +80,8 @@ public class TakeBonusFlash extends BaseActivity {
 
     private void loadQuizDetails(String quizId) {
 
+        showLoading();
+
 
         try {
             FirebaseDatabase bonusDb = FirebaseDatabase.getInstance(FirebaseApp.getInstance("bonusFlashApp"));
@@ -147,6 +149,8 @@ public class TakeBonusFlash extends BaseActivity {
 
                     // Set click listener to show question dialog
                     cardView.setOnClickListener(v -> showBonusQuestionDialog(question, answer, bonusPoints, cardView));
+
+                    hideLoading();
                 }
 
             } catch (Exception e) {
@@ -196,7 +200,7 @@ public class TakeBonusFlash extends BaseActivity {
                 dialog.dismiss();
 
                 if (answeredQuestions == totalQuestions) {
-                    showCompletionDialog();
+                    showCompletionDialog(totalBonusPoints);
                 }
             } else {
                 Toast.makeText(TakeBonusFlash.this, "Please provide an answer.", Toast.LENGTH_SHORT).show();
@@ -207,14 +211,12 @@ public class TakeBonusFlash extends BaseActivity {
         dialog.show();
     }
 
-    private void showCompletionDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Congratulations!")
-                .setMessage("You have answered all bonus questions!\nTotal Bonus Points: " + totalBonusPoints)
-                .setCancelable(false)
-                .setPositiveButton("Finish", (dialog, which) -> finish())
-                .show();
+    private void showCompletionDialog(int totalBonusPoints) {
+        Intent intent = new Intent(this, BonusFlashResult.class);
+        intent.putExtra("totalBonusPoints", totalBonusPoints);
+        startActivity(intent);
     }
+
 
 
 

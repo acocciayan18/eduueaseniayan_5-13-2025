@@ -25,7 +25,15 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".BonusFlashResult"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".CreateQuiz"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".GooglePasswordSetup"
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity

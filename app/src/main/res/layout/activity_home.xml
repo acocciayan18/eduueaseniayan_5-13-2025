@@ -74,7 +74,24 @@
         app:layout_constraintBottom_toBottomOf="@id/search_quiz"
         app:layout_constraintEnd_toEndOf="parent" />
 
+
     <!-- Quiz Title -->
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/help_button"
+        android:layout_width="25dp"
+        android:layout_height="25dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        android:background="@drawable/questionmark"
+        android:contentDescription="Help"
+        android:tooltipText="This is help"
+        app:layout_constraintEnd_toStartOf="@+id/quiz_title"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/search_quiz" />
+
+
     <TextView
         android:id="@+id/quiz_title"
         android:layout_width="0dp"

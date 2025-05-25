@@ -23,6 +23,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -72,7 +73,10 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
         setContentView(R.layout.activity_home);
 
 
-            ///DROP DOWN
+
+
+
+        ///DROP DOWN
         Spinner spinner = findViewById(R.id.my_spinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
                 R.array.dropdown_items, R.layout.spinner_item); // For selected item (no line)
@@ -162,6 +166,15 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
     @SuppressLint("NotifyDataSetChanged")
     private void loadBonusFlashQuizzesFromRealtime() {
         showLoading(); // Show loading indicator at start
+
+        AppCompatButton helpButton = findViewById(R.id.help_button);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            helpButton.setTooltipText("A public topic-based quiz with random bonus points that created by you and others. Correct answers earn the bonus based on the box you choose.");
+        }
+
+
+
 
         FirebaseApp secondaryApp;
 
@@ -258,6 +271,14 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
     @SuppressLint("NotifyDataSetChanged")
     private void loadLocalBonusFlashQuizzesFromRealtime() {
         showLoading();
+
+        AppCompatButton helpButton = findViewById(R.id.help_button);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            helpButton.setTooltipText("A private and local topic-based quiz with random bonus points. Correct answers earn the bonus based on the box you choose.");
+        }
+
+
         FirebaseApp secondaryApp;
 
         try {
@@ -365,6 +386,13 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
     @SuppressLint("NotifyDataSetChanged")
     private void loadPublicQuizzesFromRealtime() {
         showLoading();
+
+        AppCompatButton helpButton = findViewById(R.id.help_button);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            helpButton.setTooltipText("Quizzes that shared publicly by you and others — anyone online can view and take them.");
+        }
+
         FirebaseApp secondaryApp;
 
         // Initialize secondary FirebaseApp only if not already initialized
@@ -448,6 +476,13 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
     @SuppressLint("NotifyDataSetChanged")
     private void loadRandomQuizTopicsFromRealtime() {
         showLoading();
+
+        AppCompatButton helpButton = findViewById(R.id.help_button);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            helpButton.setTooltipText("A mix of random quiz topics from different categories made by admins. Choose from multiple choice, identification, or true or false modes.");
+        }
+
         FirebaseApp secondaryApp;
 
         // Initialize secondary FirebaseApp if not already
@@ -531,28 +566,28 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
 
 
 
-    private void showQuizTypeDialog(String topicTitle) {
-        String[] quizTypes = {"Multiple Choice", "True or False", "Identification"};
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Quiz Type for " + topicTitle)
-                .setItems(quizTypes, (dialog, which) -> {
-                    String selectedType = quizTypes[which];
-
-                    switch (selectedType) {
-                        case "Multiple Choice":
-                            startRandomQuizActivity(topicTitle, "multiple");
-                            break;
-                        case "True or False":
-                            startRandomQuizActivity(topicTitle, "truefalse");
-                            break;
-                        case "Identification":
-                            startRandomQuizActivity(topicTitle, "identification");
-                            break;
-                    }
-                });
-        builder.show();
-    }
+//    private void showQuizTypeDialog(String topicTitle) {
+//        String[] quizTypes = {"Multiple Choice", "True or False", "Identification"};
+//
+//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//        builder.setTitle("Select Quiz Type for " + topicTitle)
+//                .setItems(quizTypes, (dialog, which) -> {
+//                    String selectedType = quizTypes[which];
+//
+//                    switch (selectedType) {
+//                        case "Multiple Choice":
+//                            startRandomQuizActivity(topicTitle, "multiple");
+//                            break;
+//                        case "True or False":
+//                            startRandomQuizActivity(topicTitle, "truefalse");
+//                            break;
+//                        case "Identification":
+//                            startRandomQuizActivity(topicTitle, "identification");
+//                            break;
+//                    }
+//                });
+//        builder.show();
+//    }
 
 
     private void startRandomQuizActivity(String topicTitle, String quizType) {
@@ -734,6 +769,13 @@ public class Home extends BaseActivity implements QuizAdapter.QuizClickListener 
     @SuppressLint("NotifyDataSetChanged")
     private void loadQuizzesFromRealtimeDB() {
         showLoading();
+
+        AppCompatButton helpButton = findViewById(R.id.help_button);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            helpButton.setTooltipText("Your personal quizzes — only you can view and manage them.");
+        }
+
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
             Log.w("Home", "User not logged in.");

@@ -172,12 +172,15 @@ public class Login extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         FirebaseUser user = firebaseAuth.getCurrentUser();
                         if (user != null) {
-                            updateUI(user);
+                            if (user.isEmailVerified()) {
+                                updateUI(user);
+                            } else {
+                                showToast("Please verify your email before logging in.");
+                                firebaseAuth.signOut(); // Optional: sign out unverified users
+                            }
                         }
-                    } else {
-                        Log.w(TAG, "LoginWithEmail:failure", task.getException());
-                        showToast("Login failed. Check credentials.");
                     }
+
                 });
     }
 
@@ -195,8 +198,17 @@ public class Login extends AppCompatActivity {
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
                         FirebaseUser user = firebaseAuth.getCurrentUser();
-                        if (user != null) {
-                            updateUI(user);
+                        boolean isNewUser = Objects.requireNonNull(task.getResult()).getAdditionalUserInfo().isNewUser();
+
+                        if (isNewUser) {
+                            // Redirect to password setup screen
+                            Intent intent = new Intent(Login.this, GooglePasswordSetup.class);
+                            intent.putExtra("EMAIL", user.getEmail());
+                            intent.putExtra("NAME", user.getDisplayName());
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            updateUI(user); // Existing user
                         }
                     } else {
                         Log.w(TAG, "firebaseAuthWithGoogle:failure", task.getException());
@@ -204,6 +216,9 @@ public class Login extends AppCompatActivity {
                     }
                 });
     }
+
+
+
 
     private void openSignUpActivity() {
         Intent createAccountIntent = new Intent(Login.this, CreateAccount.class);

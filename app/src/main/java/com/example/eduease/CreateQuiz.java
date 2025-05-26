@@ -9,9 +9,12 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.RadioGroup;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -77,6 +80,36 @@ public class CreateQuiz extends BaseActivity {
         View qaBlock = inflater.inflate(R.layout.question_and_answer, qaContainer, false);
 
         monitorQAChanges(qaBlock);
+
+        Spinner questionTypeSpinner = qaBlock.findViewById(R.id.question_type_spinner);
+        EditText answerField = qaBlock.findViewById(R.id.answer_field);
+        LinearLayout multipleChoiceLayout = qaBlock.findViewById(R.id.multiple_choice_layout);
+        RadioGroup trueFalseGroup = qaBlock.findViewById(R.id.true_false_group);
+
+        questionTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selected = parent.getItemAtPosition(position).toString();
+                if (selected.equals("Identification")) {
+                    answerField.setVisibility(View.VISIBLE);
+                    multipleChoiceLayout.setVisibility(View.GONE);
+                    trueFalseGroup.setVisibility(View.GONE);
+                } else if (selected.equals("Multiple Choice")) {
+                    answerField.setVisibility(View.GONE);
+                    multipleChoiceLayout.setVisibility(View.VISIBLE);
+                    trueFalseGroup.setVisibility(View.GONE);
+                } else if (selected.equals("True/False")) {
+                    answerField.setVisibility(View.GONE);
+                    multipleChoiceLayout.setVisibility(View.GONE);
+                    trueFalseGroup.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Do nothing
+            }
+        });
 
         ImageButton addButton = qaBlock.findViewById(R.id.add_qa);
         addButton.setOnClickListener(v -> {
